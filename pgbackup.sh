@@ -11,29 +11,41 @@ if [ -f .env ]; then
   
   echo
   
-  echo "----- PostgreSQL Backup -----"
+  echo "Checking Local PostgreSQL Version..."
   
   echo
   
-  echo "Step 1: Creating Backup Roles ..."
+  psql --version
+  
+  echo
+  
+  echo "----- PostgreSQL Backup -----"
+  
+  mkdir Backup/$(date +%Y%m%d)
+  
+  mkdir Docker/$(date +%Y%m%d)
+  
+  echo
+  
+  echo "Step 1: Creating Backup Roles Of "$POSTGRES_DB" Database From "$POSTGRES_HOST" ..."
 	  
-  PGPASSWORD=$POSTGRES_PASSWORD pg_dumpall -g -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER   --no-tablespaces > globals.sql
+  PGPASSWORD=$POSTGRES_PASSWORD pg_dumpall -g -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER --no-tablespaces > Backup/$(date +%Y%m%d)/globals.sql
   
   if [ ${status} -eq 0 ]; then
   
-	echo "pg_dumpall: done: (Backup Roles) ... 100% "
+	echo "pg_dumpall: done: (Backup Roles -> globals.sql) ... 100% "
 	
   fi
   
   echo
   
-  echo "Step 2: Creating Database Backup ..."
+  echo "Step 2: Creating Dump Of "$POSTGRES_DB" Database From "$POSTGRES_HOST" ..."
   
-  PGPASSWORD=$POSTGRES_PASSWORD pg_dump -f company -Fc -Z 9 -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER $POSTGRES_DB
+  PGPASSWORD=$POSTGRES_PASSWORD pg_dump -f Backup/$(date +%Y%m%d)/Backup -Fc -Z 9 -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER $POSTGRES_DB
   
   if [ ${status} -eq 0 ]; then
   
-	echo "pg_dump: done: (Database Backup) ... 100% "
+	echo "pg_dump: done: (Database Backup -> Backup) ... 100% "
 	
   fi
   
@@ -43,7 +55,7 @@ if [ -f .env ]; then
   
   echo
   
-  read -p "Would you like to generate SQL file for Docker Postgres? " -n 1 -r
+  read -p "Would you like to generate SQL file for Docker Postgres? [Y/N]: " -n 1 -r
   
   echo
   
@@ -53,36 +65,39 @@ if [ -f .env ]; then
   
 	echo "Step 1: Generating Schema ..."
 	
-	pg_restore -f schema.sql -Fc -s --no-tablespaces company
+	pg_restore -f Docker/$(date +%Y%m%d)/schema.sql -Fc -s --no-tablespaces Backup/$(date +%Y%m%d)/Backup
 	
 	if [ ${status} -eq 0 ]; then
   
-		echo "pg_restore: done: (Schema Created) ... 100% "
+		echo "pg_restore: done: (Schema Created -> schema.sql) ... 100% "
 	
 	fi
-  
-  fi
-  
-  echo
-  
-  echo "Step 2: Extracting Data ..."
-  
-  pg_restore -f data.sql -Fc -a --no-tablespaces company
-  
-  if [ ${status} -eq 0 ]; then
-  
-	echo "pg_restore: done: (Data Extracted) ... 100% "
 	
+    echo
+  
+    echo "Step 2: Extracting Data ..."
+  
+    pg_restore -f Docker/$(date +%Y%m%d)/data.sql -Fc -a --no-tablespaces Backup/$(date +%Y%m%d)/Backup
+  
+    if [ ${status} -eq 0 ]; then
+  
+	  echo "pg_restore: done: (Data Extracted -> data.sql) ... 100% "
+	
+    fi
+  
   fi
+  
+  cp Backup/$(date +%Y%m%d)/globals.sql Docker/$(date +%Y%m%d)/
   
   echo
   
   echo "Note: Copy 3 SQL files inside your docker directory."
   
+  echo "Suc"
+  
   echo
   
   echo "Done"
-  
   
 else
   
@@ -90,7 +105,7 @@ else
 	
 	echo
 	
-	read -p "Generate new .env file? " -n 1 -r
+	read -p "Generate new .env file? [Y/N]: " -n 1 -r
 	
 	if [[ $REPLY =~ ^[Yy] ]]; then
 	
